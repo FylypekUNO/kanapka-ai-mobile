@@ -6,10 +6,18 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import com.google.gson.Gson
+import java.net.CookieHandler
+import java.net.CookieManager
+import java.net.CookiePolicy
+import java.net.URI
 
 class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        val cookieManager = CookieManager(null, CookiePolicy.ACCEPT_ALL)
+        CookieHandler.setDefault(cookieManager)
+
         setContentView(R.layout.activity_main)
         ViewCompat.setOnApplyWindowInsetsListener(findViewById(R.id.main)) { v, insets ->
             val systemBars = insets.getInsets(WindowInsetsCompat.Type.systemBars())
@@ -37,17 +45,9 @@ class MainActivity : AppCompatActivity() {
     fun csrfRequest(): Promise<Any?> {
         val url = "http://192.168.1.21:3000/api/auth/csrf"
 
-        println("csrfRequest")
-
-        return HttpClient.get(url)
-            .then { text -> Gson().fromJson(text, Map::class.java) }
-            .then { data ->
-                val outputView = TextView(this)
-                outputView.text = HttpClient.listCookies().toString()
-
-                setContentView(outputView)
-
-                outputView.textSize = 18f
+        return fetch(url)
+            .then { response ->
+                println((CookieHandler.getDefault() as CookieManager).cookieStore.cookies)
             }
             .catch { error ->
                 val outputView = TextView(this)
@@ -60,7 +60,9 @@ class MainActivity : AppCompatActivity() {
     fun loginRequest(): Promise<Any?> {
         val url = "http://192.168.1.21:3000/api/auth/callback/credentials"
 
-        val csrfToken = HttpClient.listCookies().find { it.name == "next-auth.csrf-token" }?.value
+        val csrfToken =
+            (CookieHandler.getDefault() as CookieManager).cookieStore.get(URI.create("http://192.168.1.21:3000"))
+                .find { it.name == "next-auth.csrf-token" }?.value
 
         val body = mapOf(
             "emailOrUsername" to "fylyp@fylyp.fy",
@@ -72,11 +74,19 @@ class MainActivity : AppCompatActivity() {
 
         println("loginRequest")
 
-        return HttpClient.post(
-            url, body, PayloadType.FORM
+        val fetchOptions = FetchOptions(
+            method = "POST",
+            body = toJson(body),
+            headers = mapOf(
+                "Content-Type" to "application/json"
+            )
         )
-            .then {
+
+        return fetch(url, fetchOptions)
+            .then { data ->
+                println(data)
                 println("loginRequest success")
+                println((CookieHandler.getDefault() as CookieManager).cookieStore.cookies)
             }
             .catch { error ->
                 val outputView = TextView(this)
@@ -91,7 +101,8 @@ class MainActivity : AppCompatActivity() {
 
         println("favoritesRequest")
 
-        return HttpClient.get(url)
+        return fetch(url)
+            .then { res -> res.body }
             .then { text -> Gson().fromJson(text, Map::class.java) }
             .then { data ->
                 val outputView = TextView(this)
