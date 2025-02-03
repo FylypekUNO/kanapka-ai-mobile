@@ -8,6 +8,10 @@ data class HttpResponse(
     val body: String
 )
 
+fun HttpResponse.json(): Map<*, *> {
+    return Gson().fromJson(this.body, Map::class.java) as Map<*, *>
+}
+
 inline fun <reified T> HttpResponse.json(): T {
     return Gson().fromJson(this.body, T::class.java)
 }

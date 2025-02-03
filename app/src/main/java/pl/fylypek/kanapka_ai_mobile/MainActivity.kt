@@ -25,21 +25,15 @@ class MainActivity : AppCompatActivity() {
             insets
         }
 
-        try {
-            csrfRequest()
-                .then { return@then loginRequest() }
-                .catch { error ->
-                    val outputView = TextView(this)
-                    outputView.text = error.message
+        csrfRequest()
+            .then { loginRequest() }
+            .then { favoritesRequest() }
+            .catch { error ->
+                val outputView = TextView(this)
+                outputView.text = error.message
 
-                    setContentView(outputView)
-                }
-        } catch (e: Exception) {
-            val outputView = TextView(this)
-            outputView.text = e.message
-
-            setContentView(outputView)
-        }
+                setContentView(outputView)
+            }
     }
 
     fun csrfRequest(): Promise<Any?> {
@@ -76,16 +70,16 @@ class MainActivity : AppCompatActivity() {
 
         val fetchOptions = FetchOptions(
             method = "POST",
-            body = toJson(body),
+            body = toForm(body),
             headers = mapOf(
-                "Content-Type" to "application/json"
+                "Content-Type" to "application/x-www-form-urlencoded"
             )
         )
 
         return fetch(url, fetchOptions)
             .then { data ->
-                println(data)
                 println("loginRequest success")
+                println(data)
                 println((CookieHandler.getDefault() as CookieManager).cookieStore.cookies)
             }
             .catch { error ->
@@ -97,16 +91,18 @@ class MainActivity : AppCompatActivity() {
     }
 
     fun favoritesRequest(): Promise<Any?> {
-        val url = "http://192.168.1.21:3000/api/recipse/favorite"
+        val url = "http://192.168.1.21:3000/api/recipes/favorite"
 
         println("favoritesRequest")
 
         return fetch(url)
-            .then { res -> res.body }
-            .then { text -> Gson().fromJson(text, Map::class.java) }
+            .then { res -> res.json() }
             .then { data ->
+                println("favoritesRequest success")
+                println(data)
+
                 val outputView = TextView(this)
-                outputView.text = data.toString()
+                outputView.text = Gson().toJson(data)
 
                 setContentView(outputView)
 
