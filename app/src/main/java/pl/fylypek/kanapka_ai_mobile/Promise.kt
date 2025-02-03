@@ -20,7 +20,11 @@ class Promise<T> {
 
     private fun innerResolve(value: T) {
         mainHandler.post {
-            onResolve?.invoke(value)
+            try {
+                onResolve?.invoke(value)
+            } catch (e: Exception) {
+                innerReject(e)
+            }
         }
     }
 
@@ -37,7 +41,11 @@ class Promise<T> {
     fun <T2> then(callback: (T) -> T2): Promise<T2> {
         val promise = Promise<T2> { resolve, reject ->
             onResolve = {
-                resolve(callback(it))
+                try {
+                    resolve(callback(it))
+                } catch (e: Exception) {
+                    reject(e)
+                }
             }
             onReject = {
                 reject(it)
@@ -52,7 +60,11 @@ class Promise<T> {
     fun <T2> catch(callback: (Exception) -> T2): Promise<Any?> {
         val promise = Promise<Any?> { resolve, reject ->
             onResolve = {
-                resolve(it)
+                try {
+                    resolve(it)
+                } catch (e: Exception) {
+                    reject(e)
+                }
             }
             onReject = {
                 callback(it)
