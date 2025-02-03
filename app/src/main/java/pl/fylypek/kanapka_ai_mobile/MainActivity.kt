@@ -63,7 +63,6 @@ class MainActivity : AppCompatActivity() {
             "password" to "fylyp@fylyp.fY",
             "callbackUrl" to "/dashboard",
             "csrfToken" to csrfToken,
-            "json" to "true"
         )
 
         println("loginRequest")

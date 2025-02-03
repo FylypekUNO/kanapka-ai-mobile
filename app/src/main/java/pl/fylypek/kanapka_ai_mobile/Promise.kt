@@ -60,11 +60,7 @@ class Promise<T> {
     fun <T2> catch(callback: (Exception) -> T2): Promise<Any?> {
         val promise = Promise<Any?> { resolve, reject ->
             onResolve = {
-                try {
-                    resolve(it)
-                } catch (e: Exception) {
-                    reject(e)
-                }
+                resolve(it)
             }
             onReject = {
                 callback(it)

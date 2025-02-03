@@ -8,6 +8,10 @@ data class HttpResponse(
     val body: String
 )
 
+fun HttpResponse.ok(): Boolean {
+    return this.status in 200..299
+}
+
 fun HttpResponse.json(): Map<*, *> {
     return Gson().fromJson(this.body, Map::class.java) as Map<*, *>
 }

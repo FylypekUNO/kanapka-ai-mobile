@@ -43,7 +43,6 @@ dependencies {
     implementation(libs.androidx.activity)
     implementation(libs.androidx.constraintlayout)
     implementation(libs.gson)
-    implementation(libs.okhttp)
 
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
