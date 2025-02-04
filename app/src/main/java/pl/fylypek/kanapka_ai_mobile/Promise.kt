@@ -1,74 +1,63 @@
 package pl.fylypek.kanapka_ai_mobile
 
-import android.os.Handler
-import android.os.Looper
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlin.coroutines.CoroutineContext
 
-class Promise<T> {
-    private var onResolve: ((T) -> Unit)? = null
-    private var onReject: ((Exception) -> Unit)? = null
-    private val mainHandler = Handler(Looper.getMainLooper())
+sealed interface Either<L, R> {
+    class Resolved<L, R>(val value: L) : Either<L, R>
+    class Rejected<L, R>(val value: R) : Either<L, R>
+}
 
-    constructor(executor: (resolve: (T) -> Any, reject: (Exception) -> Unit) -> Any?) {
-        try {
-            Thread {
-                executor(::innerResolve, ::innerReject)
-            }.start()
-        } catch (e: Exception) {
-            innerReject(e)
-        }
-    }
+class Promise<S> {
+    private val coroutineContext: CoroutineContext = Dispatchers.Default
 
-    private fun innerResolve(value: T) {
-        mainHandler.post {
+    private var onResolved: ((S) -> Unit)? = null
+    private var onRejected: ((Throwable) -> Unit)? = null
+
+    constructor(executor: (resolve: (S) -> Unit, reject: (Throwable) -> Unit) -> Unit) {
+        CoroutineScope(coroutineContext).launch {
             try {
-                onResolve?.invoke(value)
-            } catch (e: Exception) {
-                innerReject(e)
+                executor(::resolve, ::reject)
+            } catch (e: Throwable) {
+                reject(e)
             }
         }
     }
 
-    private fun innerReject(error: Exception) {
-        mainHandler.post {
-            if (onReject != null) {
-                onReject?.invoke(error)
-            } else {
-                println("Unhandled promise rejection: $error")
+    private fun resolve(value: S) {
+        onResolved?.invoke(value)
+    }
+
+    private fun reject(error: Throwable) {
+        if (onRejected != null) {
+            onRejected?.invoke(error)
+        } else {
+            println("Unhandled promise rejection: $error")
+        }
+    }
+
+    fun <T> then(callback: (S) -> T): Promise<T> {
+        return Promise { nextResolve, nextReject ->
+            onResolved = { value ->
+                nextResolve(callback(value))
+            }
+            onRejected = { error ->
+                nextReject(error)
             }
         }
     }
 
-    fun <T2> then(callback: (T) -> T2): Promise<T2> {
-        val promise = Promise<T2> { resolve, reject ->
-            onResolve = {
-                try {
-                    resolve(callback(it))
-                } catch (e: Exception) {
-                    reject(e)
-                }
+    fun <T> catch(callback: (Throwable) -> T): Promise<Either<S, T>> {
+        return Promise { nextResolve, _ ->
+            onResolved = { value ->
+                nextResolve(Either.Resolved(value))
             }
-            onReject = {
-                reject(it)
+            onRejected = { error ->
+                nextResolve(Either.Rejected(callback(error)))
             }
 
-            return@Promise null
         }
-
-        return promise
-    }
-
-    fun <T2> catch(callback: (Exception) -> T2): Promise<Any?> {
-        val promise = Promise<Any?> { resolve, reject ->
-            onResolve = {
-                resolve(it)
-            }
-            onReject = {
-                callback(it)
-            }
-
-            return@Promise null
-        }
-
-        return promise
     }
 }

@@ -25,44 +25,45 @@ class MainActivity : AppCompatActivity() {
             insets
         }
 
+        println("MainActivity")
+
         csrfRequest()
             .then { loginRequest() }
-            .then { favoritesRequest() }
             .catch { error ->
                 val outputView = TextView(this)
                 outputView.text = error.message
 
+                println(error.message)
+
                 setContentView(outputView)
             }
+
     }
 
-    fun csrfRequest(): Promise<Any?> {
+    fun csrfRequest(): Promise<Unit> {
         val url = "http://192.168.1.21:3000/api/auth/csrf"
 
         return fetch(url)
             .then { response ->
                 println((CookieHandler.getDefault() as CookieManager).cookieStore.cookies)
             }
-            .catch { error ->
-                val outputView = TextView(this)
-                outputView.text = error.message
-
-                setContentView(outputView)
-            }
     }
 
-    fun loginRequest(): Promise<Any?> {
+    fun loginRequest(): Promise<Unit> {
         val url = "http://192.168.1.21:3000/api/auth/callback/credentials"
 
         val csrfToken =
             (CookieHandler.getDefault() as CookieManager).cookieStore.get(URI.create("http://192.168.1.21:3000"))
                 .find { it.name == "next-auth.csrf-token" }?.value
 
+        println("csrfToken: $csrfToken")
+
         val body = mapOf(
             "emailOrUsername" to "fylyp@fylyp.fy",
             "password" to "fylyp@fylyp.fY",
             "callbackUrl" to "/dashboard",
             "csrfToken" to csrfToken,
+            "json" to "true"
         )
 
         println("loginRequest")
@@ -71,7 +72,8 @@ class MainActivity : AppCompatActivity() {
             method = "POST",
             body = toForm(body),
             headers = mapOf(
-                "Content-Type" to "application/x-www-form-urlencoded"
+                "Content-Type" to "application/x-www-form-urlencoded",
+                "Host" to "example.com",
             )
         )
 
@@ -81,15 +83,9 @@ class MainActivity : AppCompatActivity() {
                 println(data)
                 println((CookieHandler.getDefault() as CookieManager).cookieStore.cookies)
             }
-            .catch { error ->
-                val outputView = TextView(this)
-                outputView.text = error.message
-
-                setContentView(outputView)
-            }
     }
 
-    fun favoritesRequest(): Promise<Any?> {
+    fun favoritesRequest(): Promise<Unit> {
         val url = "http://192.168.1.21:3000/api/recipes/favorite"
 
         println("favoritesRequest")
@@ -106,12 +102,6 @@ class MainActivity : AppCompatActivity() {
                 setContentView(outputView)
 
                 outputView.textSize = 18f
-            }
-            .catch { error ->
-                val outputView = TextView(this)
-                outputView.text = error.message
-
-                setContentView(outputView)
             }
     }
 }

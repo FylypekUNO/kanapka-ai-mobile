@@ -32,6 +32,8 @@ private fun setRequestBody(connection: HttpURLConnection, body: String?) {
 
 fun fetch(url: String, options: FetchOptions = FetchOptions()): Promise<HttpResponse> {
     return Promise { resolve, reject ->
+        println("Fetching $url")
+
         val connection = (URL(url).openConnection() as HttpURLConnection).apply {
             setRequestMethod(this, options.method)
             setRequestHeaders(this, options.headers)
