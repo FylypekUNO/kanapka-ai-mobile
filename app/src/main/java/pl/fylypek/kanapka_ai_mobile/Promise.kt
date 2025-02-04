@@ -100,4 +100,9 @@ class Promise<S> {
         }
     }
 
+    companion object {
+        fun <S> resolve(value: S): Promise<S> = Promise { res, _ -> res(value) }
+        fun <S> reject(error: Throwable): Promise<S> =
+            Promise { _, rej -> rej(error) }
+    }
 }
