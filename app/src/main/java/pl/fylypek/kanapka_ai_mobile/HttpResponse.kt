@@ -19,3 +19,7 @@ fun HttpResponse.json(): Map<*, *> {
 inline fun <reified T> HttpResponse.json(): T {
     return Gson().fromJson(this.body, T::class.java)
 }
+
+fun HttpResponse.text(): String {
+    return this.body
+}

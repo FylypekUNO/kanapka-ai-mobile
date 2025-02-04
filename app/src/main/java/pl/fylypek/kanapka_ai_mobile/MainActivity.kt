@@ -5,11 +5,9 @@ import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
-import com.google.gson.Gson
 import java.net.CookieHandler
 import java.net.CookieManager
 import java.net.CookiePolicy
-import java.net.URI
 
 class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -25,83 +23,31 @@ class MainActivity : AppCompatActivity() {
             insets
         }
 
-        println("MainActivity")
-
-        csrfRequest()
-            .then { loginRequest() }
-            .catch { error ->
-                val outputView = TextView(this)
-                outputView.text = error.message
-
-                println(error.message)
-
-                setContentView(outputView)
-            }
-
-    }
-
-    fun csrfRequest(): Promise<Unit> {
-        val url = "http://192.168.1.21:3000/api/auth/csrf"
-
-        return fetch(url)
+        request()
+            .then { response -> response.text() }
             .then { response ->
-                println((CookieHandler.getDefault() as CookieManager).cookieStore.cookies)
+                println("Response: $response")
+                "fetched"
             }
-    }
-
-    fun loginRequest(): Promise<Unit> {
-        val url = "http://192.168.1.21:3000/api/auth/callback/credentials"
-
-        val csrfToken =
-            (CookieHandler.getDefault() as CookieManager).cookieStore.get(URI.create("http://192.168.1.21:3000"))
-                .find { it.name == "next-auth.csrf-token" }?.value
-
-        println("csrfToken: $csrfToken")
-
-        val body = mapOf(
-            "emailOrUsername" to "fylyp@fylyp.fy",
-            "password" to "fylyp@fylyp.fY",
-            "callbackUrl" to "/dashboard",
-            "csrfToken" to csrfToken,
-            "json" to "true"
-        )
-
-        println("loginRequest")
-
-        val fetchOptions = FetchOptions(
-            method = "POST",
-            body = toForm(body),
-            headers = mapOf(
-                "Content-Type" to "application/x-www-form-urlencoded",
-                "Host" to "example.com",
-            )
-        )
-
-        return fetch(url, fetchOptions)
-            .then { data ->
-                println("loginRequest success")
-                println(data)
-                println((CookieHandler.getDefault() as CookieManager).cookieStore.cookies)
+            .catch { error ->
+                println("Error: $error")
+                "error while fetching"
             }
-    }
-
-    fun favoritesRequest(): Promise<Unit> {
-        val url = "http://192.168.1.21:3000/api/recipes/favorite"
-
-        println("favoritesRequest")
-
-        return fetch(url)
-            .then { res -> res.json() }
-            .then { data ->
-                println("favoritesRequest success")
-                println(data)
-
+            .then { result ->
                 val outputView = TextView(this)
-                outputView.text = Gson().toJson(data)
+                outputView.text = when (result) {
+                    is Either.Resolved -> "Success: ${result.value}"
+                    is Either.Rejected -> "Error: ${result.value}"
+                }
 
-                setContentView(outputView)
-
-                outputView.textSize = 18f
+                runOnUiThread {
+                    setContentView(outputView)
+                }
             }
+
+    }
+
+    private fun request(): Promise<HttpResponse> {
+        return fetch("...")
     }
 }

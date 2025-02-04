@@ -32,31 +32,35 @@ private fun setRequestBody(connection: HttpURLConnection, body: String?) {
 
 fun fetch(url: String, options: FetchOptions = FetchOptions()): Promise<HttpResponse> {
     return Promise { resolve, reject ->
-        println("Fetching $url")
-
         val connection = (URL(url).openConnection() as HttpURLConnection).apply {
             setRequestMethod(this, options.method)
             setRequestHeaders(this, options.headers)
             setRequestBody(this, options.body)
         }
 
-        val responseCode = connection.responseCode
-        val inputStream = if (responseCode in 200..299) {
-            connection.inputStream
-        } else {
-            connection.errorStream
+        try {
+            val responseCode = connection.responseCode
+            val inputStream = if (responseCode in 200..299) {
+                connection.inputStream
+            } else {
+                connection.errorStream
+            }
+
+            val responseBody = inputStream?.bufferedReader()?.readText() ?: ""
+            val responseHeaders = connection.headerFields.filterKeys { it != null }
+
+            val response = HttpResponse(
+                status = responseCode,
+                headers = responseHeaders,
+                body = responseBody
+            )
+
+            connection.disconnect()
+            resolve(response)
+        } catch (error: Exception) {
+            connection.disconnect()
+            reject(error)
         }
-
-        val responseBody = inputStream?.bufferedReader()?.readText() ?: ""
-        val responseHeaders = connection.headerFields.filterKeys { it != null }
-
-        val response = HttpResponse(
-            status = responseCode,
-            headers = responseHeaders,
-            body = responseBody
-        )
-
-        resolve(response)
     }
 }
 
