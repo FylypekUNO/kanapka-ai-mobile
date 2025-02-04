@@ -58,85 +58,45 @@ class Promise<S> {
         }
     }
 
-    private fun <T> thenFulfilled(callback: (S) -> T): Promise<T> {
+    fun <T> then(callback: (S) -> T): Promise<T> {
         return Promise { nextResolve, nextRejected ->
-            try {
-                nextResolve(callback(resolvedValue!!))
-            } catch (e: Throwable) {
-                nextRejected(e)
-            }
-        }
-    }
-
-    private fun <T> thenRejected(callback: (S) -> T): Promise<T> {
-        return Promise { nextResolve, nextRejected ->
-            nextRejected(rejectedError!!)
-        }
-    }
-
-    private fun <T> thenPending(callback: (S) -> T): Promise<T> {
-        return Promise { nextResolve, nextRejected ->
-            onResolvedHandlers.add { value ->
-                var newValue: T? = null
-
+            val resolvedHandler: (S) -> Unit = {
                 try {
-                    newValue = callback(value)
+                    nextResolve(callback(it))
                 } catch (e: Throwable) {
                     nextRejected(e)
                 }
-
-                nextResolve(newValue!!)
             }
-            onRejectedHandlers.add { error ->
-                nextRejected(error)
-            }
-        }
-    }
 
-    fun <T> then(callback: (S) -> T): Promise<T> {
-        return when (state) {
-            State.FULFILLED -> thenFulfilled(callback)
-            State.REJECTED -> thenRejected(callback)
-            else -> thenPending(callback)
-        }
-    }
-
-    private fun <T> catchFulfilled(callback: (Throwable) -> T): Promise<Either<S, T>> {
-        return Promise { nextResolve, _ ->
-            nextResolve(Either.Resolved(resolvedValue!!))
-        }
-    }
-
-    private fun <T> catchRejected(callback: (Throwable) -> T): Promise<Either<S, T>> {
-        return Promise { nextResolve, nextRejected ->
-            try {
-                nextResolve(Either.Rejected(callback(rejectedError!!)))
-            } catch (e: Throwable) {
-                nextRejected(e)
-            }
-        }
-    }
-
-    private fun <T> catchPending(callback: (Throwable) -> T): Promise<Either<S, T>> {
-        return Promise { nextResolve, nextRejected ->
-            onResolvedHandlers.add { value ->
-                nextResolve(Either.Resolved(value))
-            }
-            onRejectedHandlers.add { error ->
-                try {
-                    nextResolve(Either.Rejected(callback(error)))
-                } catch (e: Throwable) {
-                    nextRejected(e)
+            when (state) {
+                State.FULFILLED -> resolvedHandler(resolvedValue!!)
+                State.REJECTED -> nextRejected(rejectedError!!)
+                else -> {
+                    onResolvedHandlers.add(resolvedHandler)
+                    onRejectedHandlers.add { nextRejected(it) }
                 }
             }
         }
     }
 
     fun <T> catch(callback: (Throwable) -> T): Promise<Either<S, T>> {
-        return when (state) {
-            State.FULFILLED -> catchFulfilled(callback)
-            State.REJECTED  -> catchRejected(callback)
-            else            -> catchPending(callback)
+        return Promise { nextResolve, nextRejected ->
+            val rejectedHandler: (Throwable) -> Unit = {
+                try {
+                    nextResolve(Either.Rejected(callback(it)))
+                } catch (e: Throwable) {
+                    nextRejected(e)
+                }
+            }
+
+            when (state) {
+                State.FULFILLED -> nextResolve(Either.Resolved(resolvedValue!!))
+                State.REJECTED -> rejectedHandler(rejectedError!!)
+                else -> {
+                    onResolvedHandlers.add { nextResolve(Either.Resolved(it)) }
+                    onRejectedHandlers.add(rejectedHandler)
+                }
+            }
         }
     }
 
