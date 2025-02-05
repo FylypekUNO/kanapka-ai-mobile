@@ -100,6 +100,26 @@ class Promise<S> {
         }
     }
 
+    fun finally(callback: () -> Unit): Promise<S> {
+        return Promise { nextResolve, nextReject ->
+            fun <T> runFinallyAndPass(value: T): Promise<T> {
+                return try {
+                    Promise.resolve(callback()).then { value }
+                } catch (e: Throwable) {
+                    Promise.reject(e)
+                }
+            }
+
+            this.then { value ->
+                runFinallyAndPass(value).then(nextResolve).catch(nextReject)
+            }.catch { error ->
+                runFinallyAndPass(Unit).then { throw error }
+                    .catch { newError -> nextReject(newError) }
+            }
+        }
+    }
+
+
     companion object {
         fun <S> resolve(value: S): Promise<S> = Promise { res, _ -> res(value) }
         fun <S> reject(error: Throwable): Promise<S> =
